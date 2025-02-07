@@ -1538,6 +1538,36 @@ contract RewardsControllerTest is Test {
     rewardsController.withdraw(opRewardAsset, BOB);
   }
 
+  function testWithdrawUndistributed() external {
+    marketUSDC.deposit(10_000e6, address(this));
+    marketUSDC.borrow(1_000e6, address(this), address(this));
+
+    vm.warp(1 days);
+    marketUSDC.borrow(1_000e6, address(this), address(this));
+
+    vm.warp(2 days);
+    (, , uint256 lastUndistributed) = rewardsController.rewardIndexes(marketUSDC, opRewardAsset);
+    assertGt(lastUndistributed, 0);
+
+    uint256 bobBalance = opRewardAsset.balanceOf(BOB);
+    rewardsController.withdrawUndistributed(marketUSDC, opRewardAsset, BOB);
+    (, , lastUndistributed) = rewardsController.rewardIndexes(marketUSDC, opRewardAsset);
+    (, , uint32 lastUpdate) = rewardsController.distributionTime(marketUSDC, opRewardAsset);
+
+    assertGt(opRewardAsset.balanceOf(BOB), bobBalance);
+    assertEq(lastUndistributed, 0);
+    assertEq(lastUpdate, 2 days);
+  }
+
+  function testWithdrawUndistributedOnlyAdminRole() external {
+    vm.expectRevert(bytes(""));
+    vm.prank(BOB);
+    rewardsController.withdrawUndistributed(marketUSDC, opRewardAsset, BOB);
+
+    // withdraw call from contract should not revert
+    rewardsController.withdrawUndistributed(marketUSDC, opRewardAsset, BOB);
+  }
+
   function testWithdrawAllRewardBalance() external {
     uint256 opRewardBalance = opRewardAsset.balanceOf(address(rewardsController));
     rewardsController.withdraw(opRewardAsset, address(this));

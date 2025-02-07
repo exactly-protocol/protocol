@@ -685,6 +685,20 @@ contract RewardsController is Initializable, AccessControlUpgradeable {
     asset.safeTransfer(to, asset.balanceOf(address(this)));
   }
 
+  /// @notice Withdraws the undistributed rewards of the given market and reward asset to the given address.
+  /// @param market The market to withdraw the rewards from.
+  /// @param reward The reward asset to withdraw.
+  /// @param to The address to withdraw the rewards to.
+  function withdrawUndistributed(Market market, ERC20 reward, address to) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    bool[] memory ops = new bool[](1);
+    ops[0] = true;
+    update(address(0), market, reward, accountBalanceOperations(market, ops, address(0)));
+
+    uint256 undistributed = distribution[market].rewards[reward].lastUndistributed;
+    distribution[market].rewards[reward].lastUndistributed = 0;
+    reward.safeTransfer(to, undistributed);
+  }
+
   /// @notice Enables or updates the reward distribution for the given markets and rewards.
   /// @param configs The configurations to update each RewardData with.
   function config(Config[] memory configs) external onlyRole(DEFAULT_ADMIN_ROLE) {
